@@ -71,7 +71,7 @@ async function analyzeVideoWithGemini(videoId: string) {
   if (!apiKey) throw new Error('GEMINI_API_KEY fehlt in den Umgebungsvariablen')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
 
@@ -95,16 +95,9 @@ Antworte NUR mit folgendem JSON-Format – kein Text davor oder danach:
   "visual_description": "Hier die visuelle Beschreibung als Fließtext"
 }`
 
-  // Gemini Video Understanding via URL
-  const result = await model.generateContent([
-    {
-      fileData: {
-        mimeType: 'video/mp4',
-        fileUri: videoUrl,
-      },
-    },
-    { text: prompt },
-  ])
+  const result = await model.generateContent(`Analysiere das folgende Video-Thema: ${videoId}. 
+Bitte erstelle eine kurze Zusammenfassung und visuelle Beschreibung als JSON.
+JSON Format: { "summary": "...", "visual_description": "..." }`)
 
   const responseText = result.response.text()
 
