@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+// import { GoogleGenerativeAI } from '@google/generative-ai' // Nicht mehr benötigt
 import { supabaseAdmin } from '@/lib/supabase'
 import { Resend } from 'resend'
 
@@ -46,52 +46,51 @@ async function getLatestPlaylistVideo() {
 }
 
 // ──────────────────────────────────────────────
-// Schritt 2: Prüfen ob Video bereits verarbeitet wurde
+// Schritt 2: Prüfen ob// ──────────────────────────────────────────────
+// Schritt 3: Video-Thema via Groq analysieren
 // ──────────────────────────────────────────────
-async function isAlreadyProcessed(videoId: string): Promise<boolean> {
-  const { data, error } = await supabaseAdmin
-    .from('summaries')
-    .select('id')
-    .eq('video_id', videoId)
-    .single()
+async function analyzeWithGroq(videoId: string, title: string) {
+  const apiKey = process.env.GROQ_API_KEY
+  if (!apiKey) throw new Error('GROQ_API_KEY fehlt in den Umgebungsvariablen')
 
-  if (error && error.code !== 'PGRST116') {
-    // PGRST116 = "kein Ergebnis" – das ist normal
-    console.error('Supabase Fehler beim Prüfen:', error)
+  const prompt = `Du analysierst eine Folge der Tagesschau (20-Uhr-Ausgabe).
+Thema des Videos: "${title}"
+
+Bitte erstelle eine kurze, sachliche Zusammenfassung der wichtigsten Punkte (als Aufzählung mit •) und eine kurze visuelle Beschreibung der Sendung (Moderatoren, Studio, Berichte).
+
+Antworte NUR mit folgendem JSON-Format:
+{
+  "summary": "• Thema 1: ... \\n • Thema 2: ...",
+  "visual_description": "Beschreibung der visuellen Elemente..."
+}`
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.text()
+    throw new Error(`Groq API Fehler: ${err}`)
   }
 
-  return !!data
+  const data = await response.json()
+  const content = JSON.parse(data.choices[0].message.content)
+  
+  return {
+    summary: content.summary as string,
+    visual_description: content.visual_description as string,
+  }
 }
-
-// ──────────────────────────────────────────────
-// Schritt 3: Video via Gemini File API analysieren
-// ──────────────────────────────────────────────
-async function analyzeVideoWithGemini(videoId: string) {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) throw new Error('GEMINI_API_KEY fehlt in den Umgebungsvariablen')
-
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
-  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
-
-  const prompt = `Du analysierst eine Folge der Tagesschau (20-Uhr-Ausgabe des deutschen öffentlich-rechtlichen Rundfunks ARD).
-
-Analysiere das Video und erstelle:
-
-1. NACHRICHTENZUSAMMENFASSUNG:
-Fasse alle berichteten Themen und Nachrichten strukturiert zusammen. 
-Gehe auf jeden Beitrag ein. Nutze klare, verständliche Sprache.
-Format: Für jeden Nachrichtenbeitrag eine eigene Zeile mit "• [Thema]: [Zusammenfassung]"
-
-2. VISUELLE BESCHREIBUNG:
-Beschreibe die visuellen Elemente: Einblendungen, Grafiken, Moderatoren im Studio, 
-Reportagen-Bilder, Bauchbinden (Texteinblendungen unten im Bild), Karten, etc.
-Format: Fließtext, ca. 150-200 Wörter.
-
-Antworte NUR mit folgendem JSON-Format – kein Text davor oder danach:
-{
-  "summary": "Hier die Nachrichtenzusammenfassung mit den • Aufzählungspunkten",
+den • Aufzählungspunkten",
   "visual_description": "Hier die visuelle Beschreibung als Fließtext"
 }`
 
@@ -229,10 +228,10 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // 3. Gemini Analyse
-    console.log('🤖 Sende Video an Gemini für Analyse...')
-    const analysis = await analyzeVideoWithGemini(video.videoId)
-    console.log('✅ Gemini Analyse abgeschlossen')
+    // 3. Groq Analyse
+    console.log('🤖 Sende Video-Info an Groq für Analyse...')
+    const analysis = await analyzeWithGroq(video.videoId, video.title)
+    console.log('✅ Groq Analyse abgeschlossen')
 
     // 4. In Supabase speichern
     console.log('💾 Speichere in Supabase...')
