@@ -28,7 +28,7 @@ export default function RootLayout({
         </nav>
         <main className="main-content">{children}</main>
         <footer className="footer">
-          <p>Automatisch generiert mit Google Gemini · Kein offizielles ARD-Produkt</p>
+          <p>Automatisch generiert mit Groq · Kein offizielles ARD-Produkt</p>
         </footer>
       </body>
     </html>
