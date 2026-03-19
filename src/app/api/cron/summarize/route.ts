@@ -12,16 +12,16 @@ export const dynamic = 'force-dynamic';
 const PLAYLIST_ID = 'PL4A2F331EE86DCC22' // Tagesschau 20:00 Uhr
 
 // ──────────────────────────────────────────────
-// Schritt 1: Neuestes Video aus YouTube Playlist laden
+// Schritt 1: Die letzten 5 Videos aus YouTube Playlist laden
 // ──────────────────────────────────────────────
-async function getLatestPlaylistVideo() {
+async function getRecentPlaylistVideos() {
   const apiKey = process.env.YOUTUBE_API_KEY
   if (!apiKey) throw new Error('YOUTUBE_API_KEY fehlt in den Umgebungsvariablen')
 
   const url = new URL('https://www.googleapis.com/youtube/v3/playlistItems')
   url.searchParams.set('part', 'snippet,contentDetails')
   url.searchParams.set('playlistId', PLAYLIST_ID)
-  url.searchParams.set('maxResults', '3')
+  url.searchParams.set('maxResults', '5') // Letzte 5 Videos
   url.searchParams.set('key', apiKey)
 
   const res = await fetch(url.toString())
@@ -31,18 +31,17 @@ async function getLatestPlaylistVideo() {
   }
 
   const data = await res.json()
-  const item = data.items?.[0]
-  if (!item) throw new Error('Keine Videos in der Playlist gefunden')
+  if (!data.items?.length) throw new Error('Keine Videos in der Playlist gefunden')
 
-  const videoId = item.contentDetails.videoId
-  const title = item.snippet.title
-  const publishedAt = item.snippet.publishedAt
-  const thumbnail =
-    item.snippet.thumbnails?.maxres?.url ||
-    item.snippet.thumbnails?.high?.url ||
-    item.snippet.thumbnails?.default?.url
-
-  return { videoId, title, publishedAt, thumbnail }
+  return data.items.map((item: any) => ({
+    videoId: item.contentDetails.videoId,
+    title: item.snippet.title,
+    publishedAt: item.snippet.publishedAt,
+    thumbnail:
+      item.snippet.thumbnails?.maxres?.url ||
+      item.snippet.thumbnails?.high?.url ||
+      item.snippet.thumbnails?.default?.url,
+  }))
 }
 
 // ──────────────────────────────────────────────
@@ -74,12 +73,18 @@ async function analyzeWithGroq(videoId: string, title: string) {
   const prompt = `Du analysierst eine Folge der Tagesschau (20-Uhr-Ausgabe).
 Thema des Videos: "${title}"
 
-Bitte erstelle eine kurze, sachliche Zusammenfassung der wichtigsten Punkte (als Aufzählung mit •) und eine kurze visuelle Beschreibung der Sendung (Moderatoren, Studio, Berichte).
+Bitte erstelle:
+1. Eine kurze, sachliche Zusammenfassung der wichtigsten Punkte auf DEUTSCH (als Aufzählung mit •).
+2. Eine kurze visuelle Beschreibung der Sendung auf DEUTSCH.
+3. Eine kurze, sachliche Zusammenfassung der wichtigsten Punkte auf ENGLISCH (summary_en).
+4. Eine kurze visuelle Beschreibung der Sendung auf ENGLISCH (visual_description_en).
 
 Antworte NUR mit folgendem JSON-Format:
 {
   "summary": "• Thema 1: ... \\n • Thema 2: ...",
-  "visual_description": "Beschreibung der visuellen Elemente..."
+  "summary_en": "• Topic 1: ... \\n • Topic 2: ...",
+  "visual_description": "Beschreibung auf Deutsch...",
+  "visual_description_en": "Description in English..."
 }`
 
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -105,7 +110,9 @@ Antworte NUR mit folgendem JSON-Format:
   
   return {
     summary: content.summary as string,
+    summary_en: content.summary_en as string,
     visual_description: content.visual_description as string,
+    visual_description_en: content.visual_description_en as string,
   }
 }
 
@@ -118,7 +125,9 @@ async function saveToSupabase(data: {
   publishedAt: string
   thumbnail: string
   summary: string
+  summary_en: string
   visual_description: string
+  visual_description_en: string
 }) {
   const { error } = await supabaseAdmin.from('summaries').insert({
     video_id: data.videoId,
@@ -126,7 +135,9 @@ async function saveToSupabase(data: {
     published_at: data.publishedAt,
     thumbnail_url: data.thumbnail,
     summary: data.summary,
+    summary_en: data.summary_en,
     visual_description: data.visual_description,
+    visual_description_en: data.visual_description_en,
     processed_at: new Date().toISOString(),
   })
 
@@ -208,54 +219,58 @@ export async function GET(request: NextRequest) {
   console.log('🔄 Cron-Job gestartet:', new Date().toISOString())
 
   try {
-    // 1. Neuestes YouTube-Video holen
-    console.log('📺 Lade neuestes Tagesschau-Video...')
-    const video = await getLatestPlaylistVideo()
-    console.log(`✅ Video gefunden: ${video.title} (${video.videoId})`)
+    // 1. Letzte YouTube-Videos holen (Backfill)
+    console.log('📺 Lade die letzten Tagesschau-Videos...')
+    const videos = await getRecentPlaylistVideos()
+    console.log(`✅ ${videos.length} Videos in Playlist gefunden.`)
 
-    // 2. Prüfen ob bereits verarbeitet
-    const processed = await isAlreadyProcessed(video.videoId)
-    if (processed) {
-      console.log(`⏭️ Video ${video.videoId} wurde bereits verarbeitet – überspringe.`)
-      return NextResponse.json({
-        success: true,
-        message: `Video ${video.videoId} bereits verarbeitet`,
-        skipped: true,
+    let processedCount = 0
+    let skippedCount = 0
+
+    // Jedes Video prüfen und ggf. verarbeiten
+    for (const video of videos) {
+      const processed = await isAlreadyProcessed(video.videoId)
+      if (processed) {
+        skippedCount++
+        continue
+      }
+
+      console.log(`🤖 Verarbeite Video: ${video.title} (${video.videoId})...`)
+      
+      // Analyse
+      const analysis = await analyzeWithGroq(video.videoId, video.title)
+      
+      // Speichern
+      await saveToSupabase({
+        videoId: video.videoId,
+        title: video.title,
+        publishedAt: video.publishedAt,
+        thumbnail: video.thumbnail,
+        summary: analysis.summary,
+        summary_en: analysis.summary_en,
+        visual_description: analysis.visual_description,
+        visual_description_en: analysis.visual_description_en,
       })
+
+      // E-Mail senden (nur für das allerneueste Video in der Liste, um Spam zu vermeiden)
+      if (processedCount === 0 && skippedCount === 0) {
+        console.log('📧 Sende E-Mail Benachrichtigung...')
+        await sendEmailNotification({
+          title: video.title,
+          publishedAt: video.publishedAt,
+          summary: analysis.summary,
+          videoId: video.videoId,
+        })
+      }
+
+      processedCount++
     }
-
-    // 3. Groq Analyse
-    console.log('🤖 Sende Video-Info an Groq für Analyse...')
-    const analysis = await analyzeWithGroq(video.videoId, video.title)
-    console.log('✅ Groq Analyse abgeschlossen')
-
-    // 4. In Supabase speichern
-    console.log('💾 Speichere in Supabase...')
-    await saveToSupabase({
-      videoId: video.videoId,
-      title: video.title,
-      publishedAt: video.publishedAt,
-      thumbnail: video.thumbnail,
-      summary: analysis.summary,
-      visual_description: analysis.visual_description,
-    })
-    console.log('✅ In Supabase gespeichert')
-
-    // 5. E-Mail senden
-    console.log('📧 Sende E-Mail Benachrichtigung...')
-    await sendEmailNotification({
-      title: video.title,
-      publishedAt: video.publishedAt,
-      summary: analysis.summary,
-      videoId: video.videoId,
-    })
-    console.log('✅ E-Mail gesendet')
 
     return NextResponse.json({
       success: true,
-      message: `Tagesschau vom ${new Date(video.publishedAt).toLocaleDateString('de-DE')} erfolgreich verarbeitet`,
-      videoId: video.videoId,
-      title: video.title,
+      message: `${processedCount} Videos erfolgreich verarbeitet, ${skippedCount} übersprungen.`,
+      processed: processedCount,
+      skipped: skippedCount,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

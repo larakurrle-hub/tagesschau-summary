@@ -9,19 +9,25 @@ import { supabase } from '@/lib/supabase'
 // ──────────────────────────────────────────────
 export const revalidate = 0
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: { lang?: string }
+}) {
+  const lang = searchParams.lang === 'en' ? 'en' : 'de'
+
   // Lade alle Zusammenfassungen aus der Datenbank (neueste zuerst)
   const { data: summaries, error } = await supabase
     .from('summaries')
-    .select('id, title, published_at, thumbnail_url, summary')
+    .select('id, title, published_at, thumbnail_url, summary, summary_en')
     .order('published_at', { ascending: false })
 
   if (error) {
     console.error('Fehler beim Laden der Zusammenfassungen:', error.message)
     return (
       <div className="container">
-        <h1>Ups, da ist was schiefgelaufen.</h1>
-        <p>Die Datenbank konnte nicht erreicht werden.</p>
+        <h1>{lang === 'en' ? 'Oops, something went wrong.' : 'Ups, da ist was schiefgelaufen.'}</h1>
+        <p>{lang === 'en' ? 'Could not connect to database.' : 'Die Datenbank konnte nicht erreicht werden.'}</p>
       </div>
     )
   }
@@ -29,17 +35,18 @@ export default async function Home() {
   return (
     <div className="container">
       <header className="page-header">
-        <h1>Die Tagesschau – Zusammengefasst</h1>
+        <h1>{lang === 'en' ? 'Tagesschau – Summarized' : 'Die Tagesschau – Zusammengefasst'}</h1>
         <p className="subtitle">
-          Tägliche KI-Zusammenfassungen der 20-Uhr-Nachrichten. <br />
-          Lies das Wichtigste in 2 Minuten.
+          {lang === 'en' 
+            ? 'Daily AI summaries of the 8 PM news. Read the essentials in 2 minutes.' 
+            : 'Tägliche KI-Zusammenfassungen der 20-Uhr-Nachrichten. Lies das Wichtigste in 2 Minuten.'}
         </p>
       </header>
 
       {summaries && summaries.length > 0 ? (
         <div className="grid">
           {summaries.map((item) => (
-            <Link href={`/summary/${item.id}`} key={item.id} className="card">
+            <Link href={`/summary/${item.id}${lang === 'en' ? '?lang=en' : ''}`} key={item.id} className="card">
               <div className="card-image-wrapper">
                 <Image
                   src={item.thumbnail_url}
@@ -51,7 +58,7 @@ export default async function Home() {
               </div>
               <div className="card-content">
                 <time className="card-date">
-                  {new Date(item.published_at).toLocaleDateString('de-DE', {
+                  {new Date(item.published_at).toLocaleDateString(lang === 'en' ? 'en-US' : 'de-DE', {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
@@ -61,9 +68,10 @@ export default async function Home() {
                 <h2 className="card-title">{item.title}</h2>
                 <p className="card-excerpt">
                   {/* Zeige nur den Anfang der Zusammenfassung */}
-                  {item.summary.split('\n')[0].replace('• ', '')} ...
+                  {(lang === 'en' && item.summary_en ? item.summary_en : item.summary)
+                    .split('\n')[0].replace('• ', '')} ...
                 </p>
-                <span className="read-more">Ganze Meldung lesen →</span>
+                <span className="read-more">{lang === 'en' ? 'Read full story →' : 'Ganze Meldung lesen →'}</span>
               </div>
             </Link>
           ))}

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Outfit } from 'next/font/google'
+import Link from 'next/link'
 import './globals.css'
 
 const font = Outfit({ subsets: ['latin'] })
@@ -23,7 +24,11 @@ export default function RootLayout({
               <span className="brand-icon">📺</span>
               <span className="brand-text">Tagesschau KI</span>
             </a>
-            <span className="navbar-tagline">Tägliche Zusammenfassungen</span>
+            <div className="navbar-actions">
+              <Link href="/?lang=de" className="lang-link">DE</Link>
+              <span className="lang-divider">|</span>
+              <Link href="/?lang=en" className="lang-link">EN</Link>
+            </div>
           </div>
         </nav>
         <main className="main-content">{children}</main>

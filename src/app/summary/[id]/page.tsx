@@ -11,7 +11,11 @@ interface Props {
 
 export const revalidate = 0
 
-export default async function SummaryPage({ params }: Props) {
+export default async function SummaryPage({
+  params,
+  searchParams,
+}: Props & { searchParams: { lang?: string } }) {
+  const lang = searchParams.lang === 'en' ? 'en' : 'de'
   // Eine einzelne Zusammenfassung laden
   const { data: summary, error } = await supabaseAdmin
     .from('summaries')
@@ -37,13 +41,20 @@ export default async function SummaryPage({ params }: Props) {
 
   return (
     <div className="container" style={{ maxWidth: '800px' }}>
-      <Link href="/" className="back-link">
-        ← Zurück zur Übersicht
+      <Link href={`/${lang === 'en' ? '?lang=en' : ''}`} className="back-link">
+        {lang === 'en' ? '← Back to overview' : '← Zurück zur Übersicht'}
       </Link>
 
       <article className="article">
         <header className="article-header">
-          <time className="article-date">{dateFormatted}</time>
+          <time className="article-date">
+            {new Date(summary.published_at).toLocaleDateString(lang === 'en' ? 'en-US' : 'de-DE', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </time>
           <h1 className="article-title">{summary.title}</h1>
         </header>
 
@@ -58,9 +69,11 @@ export default async function SummaryPage({ params }: Props) {
         </div>
 
         <section className="article-section">
-          <h2>Nachrichten-Zusammenfassung</h2>
+          <h2>{lang === 'en' ? 'News Summary' : 'Nachrichten-Zusammenfassung'}</h2>
           <div className="summary-list">
-            {summary.summary.split('\n').map((line: string, i: number) => {
+            {(lang === 'en' && summary.summary_en ? summary.summary_en : summary.summary)
+              .split('\n')
+              .map((line: string, i: number) => {
               line = line.trim()
               if (!line) return null
               

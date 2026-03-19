@@ -5,10 +5,16 @@ CREATE TABLE summaries (
   title TEXT NOT NULL,
   published_at TIMESTAMPTZ NOT NULL,
   summary TEXT NOT NULL,
+  summary_en TEXT, -- English summary
   visual_description TEXT NOT NULL,
+  visual_description_en TEXT, -- English visual description
   processed_at TIMESTAMPTZ DEFAULT now() NOT NULL,
   thumbnail_url TEXT NOT NULL
 );
+
+-- Migration für bestehende Tabellen:
+-- ALTER TABLE summaries ADD COLUMN summary_en TEXT;
+-- ALTER TABLE summaries ADD COLUMN visual_description_en TEXT;
 
 -- 2. Sicherheit (Row Level Security) aktivieren
 ALTER TABLE summaries ENABLE ROW LEVEL SECURITY;
