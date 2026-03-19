@@ -1,0 +1,22 @@
+# Dateien die NICHT auf GitHub hochgeladen werden
+# (enthält geheime API-Keys)
+.env.local
+.env
+
+# Next.js Build-Ordner
+.next/
+out/
+
+# Node.js Abhängigkeiten
+node_modules/
+
+# System-Dateien
+.DS_Store
+*.pem
+
+# Debug-Logs
+npm-debug.log*
+
+# TypeScript Build-Infos
+*.tsbuildinfo
+next-env.d.ts
