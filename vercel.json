@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/summarize",
-      "schedule": "0 19,20,21 * * *"
+      "schedule": "0 21 * * *"
     }
   ],
   "headers": [
