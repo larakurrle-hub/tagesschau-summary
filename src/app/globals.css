@@ -1,51 +1,32 @@
-/* Tagesschau Summary Design System */
+/* Tagesschau Summary Design System - Premium Dark Blue Edition */
 :root {
-  --background: #f4f6f9;
-  --foreground: #1c1e21;
-  --primary: #003366;      /* ARD Blau */
-  --primary-hover: #002244;
-  --accent: #cc0000;       /* Tagesschau Rot */
-  --accent-hover: #aa0000;
-  --surface: #ffffff;
-  --surface-hover: #fcfcfc;
-  --border: #e0e5eb;
-  --text-muted: #667085;
-  --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
-  --radius: 12px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f1115;
-    --foreground: #f0f2f5;
-    --primary: #3b82f6; 
-    --primary-hover: #60a5fa;
-    --accent: #ef4444;
-    --accent-hover: #f87171;
-    --surface: #1e2128;
-    --surface-hover: #2a2d35;
-    --border: #333842;
-    --text-muted: #9ca3af;
-    --shadow-sm: 0 2px 4px rgba(0,0,0,0.2);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
-    --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
-  }
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+  --background: #000b18;    /* Deep Space Blue */
+  --foreground: #f0f4f8;    /* Soft White */
+  --primary: #003366;      /* ARD Blue */
+  --primary-light: #0055aa;
+  --accent: #ff4747;       /* Tagesschau Red (Vibrant) */
+  --surface: #0a192f;      /* Surface Dark Blue */
+  --surface-header: #0d2138;
+  --surface-card: #04122d;
+  --border: #1a2e4c;
+  --text-muted: #8892b0;
+  --shadow-sm: 0 4px 6px rgba(0,0,0,0.3);
+  --shadow-md: 0 10px 30px -10px rgba(0,0,0,0.5);
+  --shadow-lg: 0 20px 40px -12px rgba(0,0,0,0.6);
+  --radius: 16px;
+  --font-main: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
   line-height: 1.6;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-main);
   -webkit-font-smoothing: antialiased;
+  background-image: 
+    radial-gradient(at 0% 0%, hsla(215, 98%, 15%, 1) 0, transparent 50%), 
+    radial-gradient(at 50% 0%, hsla(210, 100%, 10%, 1) 0, transparent 50%);
+  background-attachment: fixed;
 }
 
 a {
@@ -57,7 +38,9 @@ a {
    Layout & Navigation
    ────────────────────────────────────────────── */
 .navbar {
-  background-color: var(--surface);
+  background-color: rgba(13, 33, 56, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -65,63 +48,27 @@ a {
   box-shadow: var(--shadow-sm);
 }
 
-.navbar-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1rem 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .navbar-brand {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: var(--primary);
-  transition: opacity 0.2s ease;
-}
-
-.navbar-brand:hover {
-  opacity: 0.8;
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: #fff;
+  letter-spacing: -0.01em;
 }
 
 .brand-icon {
-  font-size: 1.5rem;
-}
-
-.navbar-tagline {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  font-weight: 500;
-  display: none;
-}
-
-@media (min-width: 640px) {
-  .navbar-tagline {
-    display: block;
-  }
-}
-
-.main-content {
-  min-height: calc(100vh - 140px);
-  padding: 3rem 1.5rem;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
 }
 
 .footer {
   text-align: center;
-  padding: 2rem;
+  padding: 3rem 2rem;
   color: var(--text-muted);
   font-size: 0.875rem;
   border-top: 1px solid var(--border);
-  background-color: var(--surface);
+  background-color: var(--surface-header);
 }
 
 /* ──────────────────────────────────────────────
@@ -154,20 +101,20 @@ a {
 }
 
 .card {
-  background-color: var(--surface);
+  background-color: var(--surface-card);
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow-md);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
 }
 
 .card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary);
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 30px 60px -12px rgba(0,0,0,0.5), 0 18px 36px -18px rgba(0,0,0,0.5);
+  border-color: var(--primary-light);
 }
 
 .card-image-wrapper {
