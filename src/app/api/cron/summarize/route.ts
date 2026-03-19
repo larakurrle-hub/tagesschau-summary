@@ -46,7 +46,25 @@ async function getLatestPlaylistVideo() {
 }
 
 // ──────────────────────────────────────────────
-// Schritt 2: Prüfen ob// ──────────────────────────────────────────────
+// ──────────────────────────────────────────────
+// Schritt 2: Prüfen ob Video bereits verarbeitet wurde
+// ──────────────────────────────────────────────
+async function isAlreadyProcessed(videoId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from('summaries')
+    .select('id')
+    .eq('video_id', videoId)
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    // PGRST116 = "kein Ergebnis" – das ist normal
+    console.error('Supabase Fehler beim Prüfen:', error)
+  }
+
+  return !!data
+}
+
+// ──────────────────────────────────────────────
 // Schritt 3: Video-Thema via Groq analysieren
 // ──────────────────────────────────────────────
 async function analyzeWithGroq(videoId: string, title: string) {
@@ -88,28 +106,6 @@ Antworte NUR mit folgendem JSON-Format:
   return {
     summary: content.summary as string,
     visual_description: content.visual_description as string,
-  }
-}
-den • Aufzählungspunkten",
-  "visual_description": "Hier die visuelle Beschreibung als Fließtext"
-}`
-
-  const result = await model.generateContent(`Analysiere das folgende Video-Thema: ${videoId}. 
-Bitte erstelle eine kurze Zusammenfassung und visuelle Beschreibung als JSON.
-JSON Format: { "summary": "...", "visual_description": "..." }`)
-
-  const responseText = result.response.text()
-
-  // JSON aus der Antwort extrahieren
-  const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) {
-    throw new Error(`Gemini hat kein gültiges JSON zurückgegeben: ${responseText}`)
-  }
-
-  const parsed = JSON.parse(jsonMatch[0])
-  return {
-    summary: parsed.summary as string,
-    visual_description: parsed.visual_description as string,
   }
 }
 
