@@ -3,6 +3,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { supabaseAdmin } from '@/lib/supabase'
 import { Resend } from 'resend'
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 // ──────────────────────────────────────────────
 // Konfiguration
 // ──────────────────────────────────────────────
